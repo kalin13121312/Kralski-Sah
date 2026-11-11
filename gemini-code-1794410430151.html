@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kralevski Sah - 3D Drven Dizajn & Online Fix</title>
+  
+  <!-- Chessboard & Chess.js Libraries -->
+  <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  
+  <!-- PeerJS for Real Internet P2P Multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #1e1b18 0%, #2a241f 50%, #12100e 100%);
+      --wood-outer: #3d2314;
+      --light-square: #f0d9b5;
+      --dark-square: #b58863;
+      --accent-gold: #d4af37;
+      --panel-bg: rgba(35, 27, 22, 0.92);
+      --text-light: #f5e6d3;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-light);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    /* --- LOADING SCREEN STYLES --- */
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: var(--bg-gradient);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+
+    #loading-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loader-icon-wrapper {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin-bottom: 25px;
+    }
+
+    .loader-piece-bg, .loader-piece-fg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8rem;
+    }
+
+    .loader-piece-bg {
+      color: #3a332d;
+      text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    .loader-piece-fg {
+      color: #f5e6d3;
+      text-shadow: 0 0 15px rgba(212, 175, 55, 0.8);
+      clip-path: polygon(0 0, 100% 0, 100% 0%, 0 0);
+      transition: clip-path 0.05s linear;
+    }
+
+    .loading-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.8rem;
+      color: var(--accent-gold);
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .loading-percentage {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #d5c3b1;
+    }
+
+    /* --- PROFILE SCREEN STYLES --- */
+    #profile-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: var(--bg-gradient);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    #profile-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .profile-card {
+      background: #231b16;
+      border: 2px solid var(--accent-gold);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 420px;
+      padding: 30px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+      text-align: center;
+    }
+
+    .profile-icon {
+      font-size: 3rem;
+      color: var(--accent-gold);
+      margin-bottom: 15px;
+    }
+
+    /* --- MAIN GAME STYLES --- */
+    h1.title {
+      font-family: 'Cinzel', serif;
+      font-size: 2.2rem;
+      color: var(--accent-gold);
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+      letter-spacing: 2px;
+    }
+
+    .game-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+      align-items: flex-start;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .board-wrapper {
+      position: relative;
+      padding: 24px;
+      background: linear-gradient(145deg, #4a2d1a, #231208);
+      border-radius: 12px;
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.8),
+        inset 0 2px 5px rgba(255,255,255,0.2),
+        inset 0 -5px 12px rgba(0,0,0,0.9);
+      border: 4px solid #1a0b04;
+    }
+
+    #board {
+      width: 520px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .white-1e1d3 { background-color: var(--light-square) !important; color: #b58863; }
+    .black-3c85d { background-color: var(--dark-square) !important; color: #f0d9b5; }
+    
+    .square-selected {
+      background-color: rgba(255, 215, 0, 0.5) !important;
+    }
+
+    .valid-move-marker {
+      position: absolute;
+      width: 26%;
+      height: 26%;
+      background: rgba(212, 175, 55, 0.85);
+      border-radius: 50%;
+      top: 37%;
+      left: 37%;
+      z-index: 50;
+      pointer-events: none;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.9);
+      animation: pulseMarker 1.2s infinite;
+    }
+
+    .valid-capture-marker {
+      position: absolute;
+      width: 90%;
+      height: 90%;
+      border: 4px dashed rgba(212, 175, 55, 0.9);
+      border-radius: 50%;
+      top: 5%;
+      left: 5%;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    @keyframes pulseMarker {
+      0% { transform: scale(0.85); opacity: 0.7; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(0.85); opacity: 0.7; }
+    }
+
+    .control-panel {
+      flex: 1;
+      min-width: 320px;
+      max-width: 420px;
+      background: var(--panel-bg);
+      border: 2px solid rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .mode-selection {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #d4af37 0%, #aa820a 100%);
+      color: #1a0b04;
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(212, 175, 55, 0.5);
+    }
+
+    .btn-secondary {
+      background: #3a2e26;
+      color: var(--text-light);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-secondary:hover { background: #4e3f34; }
+
+    .btn-danger { background: #8b2626; color: #fff; }
+    .btn-danger:hover { background: #a83232; }
+
+    select.input-select, input.input-field {
+      width: 100%;
+      padding: 10px 14px;
+      background: #19130f;
+      border: 1px solid #4a382c;
+      border-radius: 6px;
+      color: var(--text-light);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .status-box {
+      background: rgba(0,0,0,0.4);
+      padding: 12px;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 4px solid var(--accent-gold);
+      font-size: 0.9rem;
+    }
+
+    .move-history {
+      height: 140px;
+      overflow-y: auto;
+      background: #140f0c;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      border: 1px solid #33261d;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+    .modal-card {
+      background: #231b16;
+      border: 2px solid var(--accent-gold);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 460px;
+      padding: 25px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+      position: relative;
+    }
+
+    .modal-header {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--accent-gold);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .room-code-display {
+      background: #120e0b;
+      border: 2px dashed var(--accent-gold);
+      padding: 15px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #fff;
+      border-radius: 8px;
+      margin: 15px 0;
+      position: relative;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%); padding: 6px 12px; font-size: 0.8rem;
+    }
+
+    .player-badge {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; background: #19130f; border-radius: 6px; margin-top: 8px;
+    }
+    .player-status-dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+    .player-status-dot.online { background: #2ecc71; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between; margin: 12px 0;
+    }
+
+    @media (max-width: 900px) {
+      #board { width: 340px; }
+      .game-container { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen">
+    <div class="loader-icon-wrapper">
+      <div class="loader-piece-bg"><i class="fa-solid fa-chess-knight"></i></div>
+      <div class="loader-piece-fg" id="loader-fg"><i class="fa-solid fa-chess-knight"></i></div>
+    </div>
+    <div class="loading-title">KRALEVSKI SAH</div>
+    <div class="loading-percentage" id="loader-text">1%</div>
+  </div>
+
+  <!-- PROFILE SETUP SCREEN -->
+  <div id="profile-screen" class="hidden">
+    <div class="profile-card">
+      <div class="profile-icon"><i class="fa-solid fa-chess-king"></i></div>
+      <div class="modal-header" style="justify-content: center; margin-bottom: 10px;">Kreiraj Svoj Profil</div>
+      <div style="font-size: 0.85rem; color: #aaa; margin-bottom: 20px;">Vnesete gi vasite podatoci za da zapocnete so igra:</div>
+      
+      <div style="margin-bottom: 12px; text-align: left;">
+        <label style="font-size: 0.85rem; color: #aaa;">Ime:*</label>
+        <input type="text" id="prof-name" class="input-field" placeholder="Vasheto Ime">
+      </div>
+      <div style="margin-bottom: 12px; text-align: left;">
+        <label style="font-size: 0.85rem; color: #aaa;">Prezime:*</label>
+        <input type="text" id="prof-surname" class="input-field" placeholder="Vasheto Prezime">
+      </div>
+      <div style="margin-bottom: 20px; text-align: left;">
+        <label style="font-size: 0.85rem; color: #aaa;">Datum na ragjanje:</label>
+        <input type="date" id="prof-dob" class="input-field">
+      </div>
+      
+      <button class="btn btn-primary" style="width: 100%;" onclick="savePlayerProfile()">Zacuvaj i Zapocni</button>
+    </div>
+  </div>
+
+  <h1 class="title"><i class="fa-solid font-awesome-flag"></i> KRALEVSKI SAH</h1>
+
+  <div class="game-container">
+    <div class="board-wrapper">
+      <div id="board"></div>
+    </div>
+
+    <div class="control-panel">
+      <div class="mode-selection">
+        <label style="font-weight:600; font-size:0.85rem; color:#aaa;">IZBERI MOD NA IGRA:</label>
+        
+        <button class="btn btn-primary" onclick="openBotModal()">
+          <i class="fa-solid fa-robot"></i> Igraj protiv Bot (AI)
+        </button>
+
+        <button class="btn btn-secondary" onclick="openLocalModal()">
+          <i class="fa-solid fa-user-friends"></i> Lokalna igra (Pass & Play)
+        </button>
+
+        <button class="btn btn-secondary" onclick="openOnlineModal()">
+          <i class="fa-solid fa-globe"></i> Online Igra (2-Player P2P)
+        </button>
+      </div>
+
+      <hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">
+
+      <div class="status-box">
+        <div><strong>Profil:</strong> <span id="player-display-name" style="color:var(--accent-gold);">Gostin</span></div>
+        <div><strong>Rezim:</strong> <span id="current-mode-text">Lokalno / Vezbanje</span></div>
+        <div><strong>Status:</strong> <span id="game-status">Na red e Beliot</span></div>
+      </div>
+
+      <div style="margin-bottom: 10px; font-weight:600; font-size:0.85rem; color:#aaa;">ISTORIJA NA POTEZI:</div>
+      <div class="move-history" id="move-history"></div>
+
+      <div style="margin-top: 15px; display:flex; gap:10px;">
+        <button class="btn btn-danger" style="flex:1;" onclick="resetGame()">
+          <i class="fa-solid fa-rotate-left"></i> Nova Igra
+        </button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="flipBoard()">
+          <i class="fa-solid fa-arrows-rotate"></i> Svrti tabla
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="modal-bot">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Izberi tezina na Bot</span>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModals()"></i>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display:block; margin-bottom: 5px; font-size: 0.9rem;">Nivo na tezina:</label>
+        <select id="bot-difficulty" class="input-select">
+          <option value="easy">Easy (Lesno - Slucajni potezi)</option>
+          <option value="normal" selected>Normal (Normalno - Lakom)</option>
+          <option value="hard">Hard (Tesko - Minimax Depth 2)</option>
+          <option value="extreme">Extreme (Ekstremno - Positional)</option>
+          <option value="impossible">Impossible (Master - Minimax Depth 4)</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display:block; margin-bottom: 5px; font-size: 0.9rem;">Igraj kako:</label>
+        <select id="bot-color" class="input-select">
+          <option value="w">Bel (Prv poteg)</option>
+          <option value="b">Crn</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width: 100%;" onclick="startBotGame()">Zapocni Igra</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-local">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Lokalna Igra (Ist ured)</span>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModals()"></i>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Ime na Igrac 1 (Bel):</label>
+        <input type="text" id="local-p1" class="input-field" value="Igrac 1">
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label style="display:block; margin-bottom:5px; font-size:0.85rem;">Ime na Igrac 2 (Crn):</label>
+        <input type="text" id="local-p2" class="input-field" value="Igrac 2">
+      </div>
+      <div class="toggle-row">
+        <span style="font-size:0.85rem;">Svrti tabla po sekoj poteg:</span>
+        <input type="checkbox" id="local-auto-flip">
+      </div>
+      <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="startLocalGame()">Zapocni Lokalec Mec</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-online">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Online Igra (P2P Internet)</span>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModals()"></i>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button class="btn btn-primary" onclick="createOnlineRoom()">
+          <i class="fa-solid fa-plus-circle"></i> Kreiraj Online Soba
+        </button>
+        <div style="text-align:center; color:#888; font-size:0.85rem;">— ILI VLEZI SO KOD OD PROTIVNIK —</div>
+        <div>
+          <input type="text" id="join-room-input" class="input-field" placeholder="Vnesi Peer ID Kod..." style="text-transform: none;">
+        </div>
+        <button class="btn btn-secondary" onclick="joinOnlineRoom()">
+          <i class="fa-solid fa-right-to-bracket"></i> Vlezi vo Soba
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-lobby">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>Online Lobi Soba</span>
+      </div>
+      <div style="font-size:0.85rem; color:#aaa; text-align:center;">Prati go ovoj kod na protivnikot preku internet:</div>
+      <div class="room-code-display">
+        <span id="lobby-code-txt">Se povrzuva...</span>
+        <button class="btn btn-secondary copy-btn" onclick="copyRoomCode()">
+          <i class="fa-solid fa-copy"></i>
+        </button>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <div style="font-size:0.85rem; color:#aaa; margin-bottom:5px;">Status na vrska:</div>
+        <div class="player-badge">
+          <div class="player-status-dot" id="lobby-p2-dot"></div>
+          <span id="lobby-status-text" style="color:#777;">Cekanje protivnik da se povrze...</span>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button class="btn btn-danger" style="flex:1;" onclick="leaveOnlineRoom()">
+          <i class="fa-solid fa-door-open"></i> Napusti
+        </button>
+        <button class="btn btn-primary" id="start-online-btn" style="flex:1.5;" disabled onclick="startOnlineGameDirectly()">
+          <i class="fa-solid fa-play"></i> Zapocni Igra
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // --- LOADING SCREEN & SESSION STORAGE PROFILE LOGIC ---
+    let progress = 1;
+    const loaderFg = document.getElementById('loader-fg');
+    const loaderText = document.getElementById('loader-text');
+    const loadingScreen = document.getElementById('loading-screen');
+    const profileScreen = document.getElementById('profile-screen');
+
+    const loadingInterval = setInterval(() => {
+      progress += 2;
+      if (progress > 100) progress = 100;
+
+      loaderFg.style.clipPath = `polygon(0 0, 100% 0, 100% ${progress}%, 0 ${progress}%)`;
+      loaderText.textContent = `${progress}%`;
+
+      if (progress >= 100) {
+        clearInterval(loadingInterval);
+        setTimeout(() => {
+          loadingScreen.classList.add('hidden');
+          checkExistingProfile();
+        }, 350);
+      }
+    }, 30);
+
+    function checkExistingProfile() {
+      const savedProfile = sessionStorage.getItem('chess_player_profile');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        applyProfile(profile);
+      } else {
+        profileScreen.classList.remove('hidden');
+      }
+    }
+
+    function savePlayerProfile() {
+      const name = $('#prof-name').val().trim();
+      const surname = $('#prof-surname').val().trim();
+      const dob = $('#prof-dob').val();
+
+      if (!name || !surname) {
+        alert('Ve molime vnesete ime i prezime!');
+        return;
+      }
+
+      const profile = { name, surname, dob };
+      sessionStorage.setItem('chess_player_profile', JSON.stringify(profile));
+      
+      profileScreen.classList.add('hidden');
+      applyProfile(profile);
+    }
+
+    function applyProfile(profile) {
+      const fullName = `${profile.name} ${profile.surname}`;
+      $('#player-display-name').text(fullName);
+      $('#local-p1').val(fullName);
+    }
+
+    // --- CHESS ENGINE LOGIC ---
+    let board = null;
+    let game = new Chess();
+    
+    let gameMode = 'local';
+    let botDifficulty = 'normal';
+    let playerColor = 'w';
+    let autoFlipLocal = false;
+
+    let selectedSquare = null;
+    let possibleMoves = [];
+
+    // --- PEERJS REAL INTERNET MULTIPLAYER ENGINE ---
+    let peer = null;
+    let conn = null;
+    let onlineRole = 'w'; // 'w' or 'b'
+
+    $(document).ready(function() {
+      initBoard();
+      updateStatus();
+    });
+
+    function initBoard() {
+      const config = {
+        draggable: false,
+        position: 'start',
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+      };
+      board = Chessboard('board', config);
+
+      $('#board').on('click', '.square-55d63', function() {
+        const square = $(this).data('square');
+        handleSquareClick(square);
+      });
+    }
+
+    function handleSquareClick(square) {
+      if (game.game_over()) return;
+      if (gameMode === 'bot' && game.turn() !== playerColor[0]) return;
+      
+      // FIX: Online mode proverka dali e red na tvojata uloga (onlineRole)
+      if (gameMode === 'online' && game.turn() !== onlineRole) return;
+
+      const piece = game.get(square);
+
+      if (selectedSquare && possibleMoves.includes(square)) {
+        executeMove(selectedSquare, square);
+        clearSelection();
+        return;
+      }
+
+      if (piece && piece.color === game.turn()) {
+        selectedSquare = square;
+        highlightValidMoves(square);
+      } else {
+        clearSelection();
+      }
+    }
+
+    function highlightValidMoves(square) {
+      removeHighlights();
+      
+      const moves = game.moves({ square: square, verbose: true });
+      if (moves.length === 0) {
+        selectedSquare = null;
+        return;
+      }
+
+      possibleMoves = moves.map(m => m.to);
+      $(`.square-${square}`).addClass('square-selected');
+
+      moves.forEach(m => {
+        const $sq = $(`.square-${m.to}`);
+        if (game.get(m.to)) {
+          $sq.append('<div class="valid-capture-marker"></div>');
+        } else {
+          $sq.append('<div class="valid-move-marker"></div>');
+        }
+      });
+    }
+
+    function removeHighlights() {
+      $('.square-55d63').removeClass('square-selected');
+      $('.valid-move-marker').remove();
+      $('.valid-capture-marker').remove();
+    }
+
+    function clearSelection() {
+      selectedSquare = null;
+      possibleMoves = [];
+      removeHighlights();
+    }
+
+    function executeMove(source, target) {
+      const move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return;
+
+      board.position(game.fen(), true);
+      updateStatus();
+
+      if (gameMode === 'local' && autoFlipLocal) {
+        window.setTimeout(() => { board.flip(); }, 300);
+      }
+
+      if (gameMode === 'online' && conn && conn.open) {
+        conn.send({ type: 'MOVE', move: move });
+      }
+
+      if (gameMode === 'bot' && !game.game_over() && game.turn() !== playerColor[0]) {
+        window.setTimeout(makeBotMove, 600);
+      }
+    }
+
+    function updateStatus () {
+      let status = '';
+      let moveColor = game.turn() === 'b' ? 'Crniot' : 'Beliot';
+
+      if (game.in_checkmate()) {
+        status = 'Kraj na igra: ' + moveColor + ' e vo SAH-MAT!';
+      } else if (game.in_draw()) {
+        status = 'Kraj na igra: NERESEHNO (Pat / Remi)!';
+      } else {
+        status = 'Na red e: ' + moveColor;
+        if (game.in_check()) {
+          status += ' (SAH!)';
+        }
+      }
+
+      $('#game-status').html(status);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = game.history();
+      let html = '';
+      for (let i = 0; i < history.length; i += 2) {
+        html += `<div>${(i/2)+1}. ${history[i]} ${history[i+1] ? history[i+1] : ''}</div>`;
+      }
+      $('#move-history').html(html);
+      $('#move-history').scrollTop($('#move-history')[0].scrollHeight);
+    }
+
+    /* --- BOT LOGIC --- */
+    function makeBotMove() {
+      if (game.game_over()) return;
+      const moves = game.moves();
+      if (moves.length === 0) return;
+
+      let selectedMove = null;
+
+      if (botDifficulty === 'easy') {
+        selectedMove = moves[Math.floor(Math.random() * moves.length)];
+      } else if (botDifficulty === 'normal') {
+        const captureMoves = game.moves({ verbose: true }).filter(m => m.captured);
+        if (captureMoves.length > 0) {
+          selectedMove = captureMoves[Math.floor(Math.random() * captureMoves.length)].san;
+        } else {
+          selectedMove = moves[Math.floor(Math.random() * moves.length)];
+        }
+      } else {
+        const depth = botDifficulty === 'hard' ? 2 : (botDifficulty === 'extreme' ? 3 : 4);
+        selectedMove = getBestMinimaxMove(depth);
+      }
+
+      game.move(selectedMove);
+      board.position(game.fen(), true);
+      updateStatus();
+    }
+
+    function getBestMinimaxMove(depth) {
+      let bestMove = null;
+      let bestValue = -9999;
+      const moves = game.moves();
+
+      for (let i = 0; i < moves.length; i++) {
+        game.move(moves[i]);
+        let boardValue = -minimax(depth - 1, -10000, 10000, false);
+        game.undo();
+        if (boardValue > bestValue) {
+          bestValue = boardValue;
+          bestMove = moves[i];
+        }
+      }
+      return bestMove || moves[Math.floor(Math.random() * moves.length)];
+    }
+
+    function minimax(depth, alpha, beta, isMaximizing) {
+      if (depth === 0) return evaluateBoard();
+      const moves = game.moves();
+      if (isMaximizing) {
+        let bestValue = -9999;
+        for (let i = 0; i < moves.length; i++) {
+          game.move(moves[i]);
+          bestValue = Math.max(bestValue, minimax(depth - 1, alpha, beta, !isMaximizing));
+          game.undo();
+          alpha = Math.max(alpha, bestValue);
+          if (beta <= alpha) break;
+        }
+        return bestValue;
+      } else {
+        let bestValue = 9999;
+        for (let i = 0; i < moves.length; i++) {
+          game.move(moves[i]);
+          bestValue = Math.min(bestValue, minimax(depth - 1, alpha, beta, !isMaximizing));
+          game.undo();
+          beta = Math.min(beta, bestValue);
+          if (beta <= alpha) break;
+        }
+        return bestValue;
+      }
+    }
+
+    const pieceValues = { p: 10, r: 50, n: 30, b: 30, q: 90, k: 900 };
+    function evaluateBoard() {
+      let totalEvaluation = 0;
+      const b = game.board();
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          const piece = b[i][j];
+          if (piece) {
+            const val = pieceValues[piece.type] || 0;
+            totalEvaluation += piece.color === playerColor[0] ? -val : val;
+          }
+        }
+      }
+      return totalEvaluation;
+    }
+
+    /* --- MODALS & MENUS --- */
+    function closeModals() { $('.modal-overlay').removeClass('active'); clearSelection(); }
+    function openBotModal() { closeModals(); $('#modal-bot').addClass('active'); }
+    function openLocalModal() { closeModals(); $('#modal-local').addClass('active'); }
+    function openOnlineModal() { closeModals(); $('#modal-online').addClass('active'); }
+
+    function resetGame() {
+      game.reset();
+      board.start(false);
+      clearSelection();
+      if (gameMode === 'bot' && playerColor === 'b') {
+        board.orientation('black');
+        window.setTimeout(makeBotMove, 500);
+      } else {
+        board.orientation('white');
+      }
+      updateStatus();
+    }
+
+    function flipBoard() { board.flip(); clearSelection(); }
+
+    function startBotGame() {
+      gameMode = 'bot';
+      botDifficulty = $('#bot-difficulty').val();
+      playerColor = $('#bot-color').val();
+      $('#current-mode-text').text(`Bot (${botDifficulty.toUpperCase()})`);
+      closeModals();
+      resetGame();
+    }
+
+    function startLocalGame() {
+      gameMode = 'local';
+      autoFlipLocal = $('#local-auto-flip').is(':checked');
+      const p1 = $('#local-p1').val() || 'Igrac 1';
+      const p2 = $('#local-p2').val() || 'Igrac 2';
+      $('#current-mode-text').text(`Lokalno: ${p1} vs ${p2}`);
+      closeModals();
+      resetGame();
+    }
+
+    /* --- REAL P2P ONLINE MULTIPLAYER (PEERJS) --- */
+    function createOnlineRoom() {
+      closeModals();
+      onlineRole = 'w'; // Domaćinot e Bel
+
+      $('#lobby-code-txt').text('Kreiranje soba...');
+      $('#lobby-status-text').text('Se povrzuva so serverot...').css('color', '#777');
+      $('#lobby-p2-dot').removeClass('online');
+      $('#start-online-btn').prop('disabled', true);
+      $('#modal-lobby').addClass('active');
+
+      if (peer) { peer.destroy(); }
+
+      peer = new Peer();
+
+      peer.on('open', (id) => {
+        $('#lobby-code-txt').text(id);
+        $('#lobby-status-text').text('Cekanje protivnik da vlezge vo sobata...');
+      });
+
+      peer.on('connection', (connection) => {
+        conn = connection;
+        setupConnectionEvents();
+      });
+
+      peer.on('error', (err) => {
+        alert('Greska pri povrzuvanje: ' + err);
+      });
+    }
+
+    function joinOnlineRoom() {
+      const code = $('#join-room-input').val().trim();
+      if (!code) return alert('Vnesete validen ID kod od protivnikot!');
+
+      closeModals();
+      onlineRole = 'b'; // Gostinot e Crn
+
+      $('#lobby-code-txt').text(code);
+      $('#lobby-status-text').text('Se povrzuvame so domakinot...').css('color', '#777');
+      $('#modal-lobby').addClass('active');
+
+      if (peer) { peer.destroy(); }
+
+      peer = new Peer();
+
+      peer.on('open', (id) => {
+        conn = peer.connect(code);
+        setupConnectionEvents();
+      });
+
+      peer.on('error', (err) => {
+        alert('Greska pri vlez vo soba: ' + err);
+      });
+    }
+
+    function setupConnectionEvents() {
+      conn.on('open', () => {
+        $('#lobby-status-text').text('Protivnikot e povrzan! Mozete da zapocnete.').css('color', '#2ecc71');
+        $('#lobby-p2-dot').addClass('online');
+        $('#start-online-btn').prop('disabled', false);
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'MOVE') {
+          game.move(data.move);
+          board.position(game.fen(), true);
+          updateStatus();
+        } else if (data.type === 'START') {
+          startOnlineGameDirectly();
+        }
+      });
+
+      conn.on('close', () => {
+        alert('Protivnikot ja napusti sobata.');
+        leaveOnlineRoom();
+      });
+    }
+
+    function copyRoomCode() {
+      const code = $('#lobby-code-txt').text();
+      navigator.clipboard.writeText(code);
+      alert('Kodot e kopiran: ' + code);
+    }
+
+    function startOnlineGameDirectly() {
+      gameMode = 'online';
+      if (conn && conn.open) {
+        conn.send({ type: 'START' });
+      }
+      closeModals();
+      $('#current-mode-text').text(`Online P2P Soba`);
+      resetGame();
+      
+      // Ako igracot e gostin (Crn), automatski svrti ja tablata za da go gleda sahot od crna perspektiva
+      if (onlineRole === 'b') {
+        board.orientation('black');
+      }
+    }
+
+    function leaveOnlineRoom() {
+      if (conn) { conn.close(); conn = null; }
+      if (peer) { peer.destroy(); peer = null; }
+      closeModals();
+    }
+  </script>
+</body>
+</html>
